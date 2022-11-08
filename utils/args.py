@@ -13,6 +13,8 @@ def arg_parse():
     parser.add_argument('--lstm_num_layers', type=int, default=2)
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--lr_scheduler', type=str, default='StepLR')    
+    parser.add_argument('--lr_scheduler_gamma', type=float, default=0.9)    
+    parser.add_argument('--model_save_path', type=str, default='trained_model/fall_detection_lstm.pt')    
     return parser.parse_args()
 
     

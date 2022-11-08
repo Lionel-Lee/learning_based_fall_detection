@@ -4,6 +4,7 @@ from utils.traj_data_loader import MINI_Traj_Dataset
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import torch
+from torch.optim.lr_scheduler import StepLR
 
 import ipdb
 
@@ -20,6 +21,9 @@ if __name__ == '__main__':
         net = Fall_Detection_LSTM(dim, args.embed_size, args.lstm_hidden_size, args.lstm_num_layers)
         optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
         bce_loss_func = torch.nn.BCELoss()
+        if args.lr_scheduler == 'StepLR':
+            lr_scheduler = StepLR(optimizer, step_size=args.num_epoch//4, gamma=args.lr_scheduler_gamma)
+
         for epoch in range(args.num_epoch):
             net.train()
             # # need to replace with real data
@@ -38,3 +42,6 @@ if __name__ == '__main__':
 
             if (epoch % args.info_per_epoch == 0):
                 print(f"At epoch #{epoch}, loss = {loss}, accuracy = {acc}")
+            if args.lr_scheduler is not None:
+                lr_scheduler.step()
+        torch.save(net.state_dict(), args.model_save_path)
