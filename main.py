@@ -10,17 +10,20 @@ import ipdb
 
 if __name__ == '__main__':
     args = arg_parse()
+    N = args.batch_size
+    T = args.obs_seq_len
+    dim = args.motion_dim
+    bce_loss_func = torch.nn.BCELoss()
+
+
     if args.mode == 'train':
-        N = args.batch_size
-        T = args.obs_seq_len
-        dim = args.motion_dim
         #random fake inputs, need dataloader for real imu data
+        torch.manual_seed(0)
         traj_batch = torch.randn((N,T,dim)) + torch.ones((N,T,dim))
         traj_labels = torch.randint(2,(N,1)).to(torch.float)
 
         net = Fall_Detection_LSTM(dim, args.embed_size, args.lstm_hidden_size, args.lstm_num_layers)
         optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
-        bce_loss_func = torch.nn.BCELoss()
         if args.lr_scheduler == 'StepLR':
             lr_scheduler = StepLR(optimizer, step_size=args.num_epoch//4, gamma=args.lr_scheduler_gamma)
 
@@ -45,3 +48,20 @@ if __name__ == '__main__':
             if args.lr_scheduler is not None:
                 lr_scheduler.step()
         torch.save(net.state_dict(), args.model_save_path)
+
+    elif args.mode == 'eval':
+        #random fake inputs, need dataloader for real imu data
+        torch.manual_seed(0)
+        traj_batch = torch.randn((N,T,dim)) + torch.ones((N,T,dim))
+        traj_labels = torch.randint(2,(N,1)).to(torch.float)
+
+        
+        net = Fall_Detection_LSTM(dim, args.embed_size, args.lstm_hidden_size, args.lstm_num_layers)
+        net.load_state_dict(torch.load(args.model_save_path))
+        net.eval()
+        with torch.no_grad():
+            traj_features = net(traj_batch)
+            fall_predict = 1.*(traj_features > 0.5)
+            acc = torch.mean(1.*(fall_predict == traj_labels))
+            loss = bce_loss_func(traj_features, traj_labels)
+            print(f"Evaluation loss = {loss}, accuracy = {acc}")
