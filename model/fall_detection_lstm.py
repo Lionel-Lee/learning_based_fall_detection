@@ -26,7 +26,7 @@ class Fall_Detection_LSTM(nn.Module):
         )
         self.head = nn.Linear(
             lstm_num_layers*lstm_hidden_size,
-            2,
+            1,
         )
 
     def forward(
@@ -40,7 +40,7 @@ class Fall_Detection_LSTM(nn.Module):
                 # considered agents with dimensions (N, obs_seq_len, motion_dim)
         outputs:
             - features: processed agent traj features for binary classification
-                # (N, 2)
+                # (N, 1)
         """
         features = self._lstm_forward(b_traj_inputs)
         features = self.head(features)
