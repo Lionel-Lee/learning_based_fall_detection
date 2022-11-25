@@ -4,6 +4,8 @@ from utils.traj_data_loader import MINI_Traj_Dataset
 from torch.utils.data import DataLoader
 # from torch.autograd import Variable
 import torch
+import os
+import time
 from torch.optim.lr_scheduler import StepLR
 
 import ipdb
@@ -70,3 +72,10 @@ if __name__ == '__main__':
             acc = torch.mean(1.*(fall_predict == traj_labels))
             loss = bce_loss_func(traj_features, traj_labels)
             print(f"Evaluation loss = {loss}, accuracy = {acc}")
+
+    elif args.mode == 'deploy':
+
+        while (True):
+            time.sleep(0.2)
+            ret = os.system('sshpass -p \"1234\" scp mini@192.168.102.32:/home/mini/test.txt /home/lionel/ECE598JK/learning_based_fall_detection/data')
+            assert ret == 0
