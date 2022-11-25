@@ -35,10 +35,7 @@ if __name__ == '__main__':
             num_batch = 1.*len(MINI_Traj_data_loader)
             for _, batch in enumerate(MINI_Traj_data_loader):
                 #random fake inputs for labels, need dataloader for real imu data
-                traj_batch = batch
-                # traj_labels = torch.randint(2,(traj_batch.shape[0],1)).to(torch.float)
-                traj_labels = torch.ones((traj_batch.shape[0],1)).to(torch.float)
-
+                traj_batch, traj_labels = batch     
                 traj_features = net(traj_batch)
                 fall_predict = 1.*(traj_features > 0.5)
                 acc = torch.mean(1.*(fall_predict == traj_labels))

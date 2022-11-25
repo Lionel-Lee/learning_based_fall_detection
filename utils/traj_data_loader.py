@@ -24,7 +24,10 @@ class MINI_Traj_Dataset(Dataset):
         return self.N
 
     def __getitem__(self, index):
-        return torch.tensor(self.data[index:index+self.obs_seq_len])
+        imu_data_tensor = torch.tensor(self.data[index:index+self.obs_seq_len])
+        # print(imu_data_tensor.shape)
+
+        return imu_data_tensor[:,:-1], torch.tensor(int(torch.sum(imu_data_tensor[:,-1]) > self.obs_seq_len//2)).unsqueeze(dim=0).to(torch.float)
 
 if __name__ == '__main__':
     #data loader test
@@ -32,4 +35,6 @@ if __name__ == '__main__':
     MINI_Traj_data_loader = DataLoader(dataset=traj_dataset, batch_size = 32, shuffle = True, drop_last=False)
     print(len(MINI_Traj_data_loader))
     for _, batch in enumerate(MINI_Traj_data_loader):
-        print(batch.shape)
+        data_batch, label_batch = batch
+        print(data_batch.shape)
+        print(label_batch.shape)
