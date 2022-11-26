@@ -19,8 +19,14 @@ if __name__ == '__main__':
     # for testing
     torch.manual_seed(0)
 
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") 
+    
+    device = torch.device("cpu") 
+
+    # python main.py --mode train --data_file_path data/imu_train.txt
     if args.mode == 'train':
         net = Fall_Detection_LSTM(dim, args.embed_size, args.lstm_hidden_size, args.lstm_num_layers)
+        net.to(device)
         optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
         if args.lr_scheduler == 'StepLR':
             lr_scheduler = StepLR(optimizer, step_size=args.num_epoch//4, gamma=args.lr_scheduler_gamma)
@@ -35,7 +41,10 @@ if __name__ == '__main__':
             num_batch = 1.*len(MINI_Traj_data_loader)
             for _, batch in enumerate(MINI_Traj_data_loader):
                 #random fake inputs for labels, need dataloader for real imu data
-                traj_batch, traj_labels = batch     
+                traj_batch, traj_labels = batch
+                traj_batch = traj_batch.to(device)
+                traj_labels = traj_labels.to(device)
+
                 traj_features = net(traj_batch)
                 fall_predict = 1.*(traj_features > 0.5)
                 acc = torch.mean(1.*(fall_predict == traj_labels))
@@ -54,21 +63,34 @@ if __name__ == '__main__':
                 lr_scheduler.step()
         torch.save(net.state_dict(), args.model_save_path)
 
-    elif args.mode == 'eval':
-        #random fake inputs, need dataloader for real imu data
-        traj_batch = torch.randn((N,T,dim)) + torch.ones((N,T,dim))
-        traj_labels = torch.randint(2,(N,1)).to(torch.float)
-
-        
+    # python main.py --mode eval --data_file_path data/imu_eval.txt
+    elif args.mode == 'eval':        
         net = Fall_Detection_LSTM(dim, args.embed_size, args.lstm_hidden_size, args.lstm_num_layers)
         net.load_state_dict(torch.load(args.model_save_path))
         net.eval()
+
+        traj_dataset = MINI_Traj_Dataset(data_file_path = args.data_file_path, obs_seq_len = args.obs_seq_len)
+        MINI_Traj_data_loader = DataLoader(dataset=traj_dataset, batch_size = N, shuffle = True, drop_last=True)
+
         with torch.no_grad():
-            traj_features = net(traj_batch)
-            fall_predict = 1.*(traj_features > 0.5)
-            acc = torch.mean(1.*(fall_predict == traj_labels))
-            loss = bce_loss_func(traj_features, traj_labels)
-            print(f"Evaluation loss = {loss}, accuracy = {acc}")
+            avg_loss = 0.
+            avg_acc = 0.
+            num_batch = 1.*len(MINI_Traj_data_loader)
+            for _, batch in enumerate(MINI_Traj_data_loader):
+                #random fake inputs for labels, need dataloader for real imu data
+                traj_batch, traj_labels = batch    
+                traj_batch = traj_batch.to(device)
+                traj_labels = traj_labels.to(device)
+
+                traj_features = net(traj_batch)
+                fall_predict = 1.*(traj_features > 0.5)
+                acc = torch.mean(1.*(fall_predict == traj_labels))
+
+                loss = bce_loss_func(traj_features, traj_labels)
+                avg_loss += loss
+                avg_acc += acc
+            
+            print(f"avg_loss = {avg_loss/num_batch}, avg_accuracy = {avg_acc/num_batch}")
 
     elif args.mode == 'deploy':
 
