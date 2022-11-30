@@ -67,6 +67,7 @@ if __name__ == '__main__':
     elif args.mode == 'eval':        
         net = Fall_Detection_LSTM(dim, args.embed_size, args.lstm_hidden_size, args.lstm_num_layers)
         net.load_state_dict(torch.load(args.model_save_path))
+        net.to(device)
         net.eval()
 
         traj_dataset = MINI_Traj_Dataset(data_file_path = args.data_file_path, obs_seq_len = args.obs_seq_len)
@@ -93,8 +94,20 @@ if __name__ == '__main__':
             print(f"avg_loss = {avg_loss/num_batch}, avg_accuracy = {avg_acc/num_batch}")
 
     elif args.mode == 'deploy':
-
+        net = Fall_Detection_LSTM(dim, args.embed_size, args.lstm_hidden_size, args.lstm_num_layers)
+        net.load_state_dict(torch.load(args.model_save_path))
+        net.to(device)
+        net.eval()
         while (True):
-            time.sleep(0.2)
-            ret = os.system('sshpass -p \"1234\" scp mini@192.168.102.32:/home/mini/test.txt /home/lionel/ECE598JK/learning_based_fall_detection/data')
-            assert ret == 0
+            time.sleep(0.02)
+            file_name = 'imu_deploy.txt'
+            src_path = '/home/mini/' + file_name
+            dest_path = '/home/lionel/ECE598JK/learning_based_fall_detection/data/'
+            ret = os.system('sshpass -p \"1234\" scp mini@192.168.102.32:'+src_path+' '+dest_path)
+            if ret == 0:
+                data_file = open((dest_path+file_name), 'r')
+                lines = data_file.readlines()
+                imu_data_traj = torch.tensor([list(map(float, line.split())) for line in lines][0]).to(device)
+                traj_features = net(imu_data_traj)
+                if (traj_features > 0.5):
+                    print("Fall Detected!")                
