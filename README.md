@@ -35,4 +35,20 @@ The prediction is based on the hidden states output of the lstm units, not the c
 
 To train/evaluate the model, the mode should be set to 'train' and 'eval' respectively. 
 
+```
+python main.py --mode train --data_file_path data/imu_train.txt
+python main.py --mode eval --data_file_path data/imu_eval.txt
+```
+
 Both the training and evaluation pipeline are written in ./main.py. The trianing number of epochs, leraning rate, leraning rate scheduler, model saving path, etc. are all specified in ./utils/args.py. Trained models are stored as .pt files in the ./trained_model/ directory.
+
+## Deployment
+During the locomotion or any other actions of the robot, an independent thread is tracking the IMU data, extracting 10 dimensions (angular velocity, acceleration, orientation, etc.), applying a low-pass Kalman Filter, and writing the processed data into a local data file.
+
+The remote device keeps polling the data file at a certain frequency (50 Hz), parsing the data file and feed the data into the neural network for prediction.  
+
+To activate deployment on the remote device side, run:
+```
+python main.py --mode deploy
+```
+
