@@ -8,6 +8,8 @@ import os
 import time
 from torch.optim.lr_scheduler import StepLR
 
+
+import matplotlib.pyplot as plt
 import ipdb
 
 if __name__ == '__main__':
@@ -31,6 +33,10 @@ if __name__ == '__main__':
         if args.lr_scheduler == 'StepLR':
             lr_scheduler = StepLR(optimizer, step_size=args.num_epoch//4, gamma=args.lr_scheduler_gamma)
 
+        epoch_train_loss = []
+        epoch_train_acc = []
+        epoch_eval_loss = []
+        epoch_eval_acc = []
         for epoch in range(args.num_epoch):
             net.train()
             traj_dataset = MINI_Traj_Dataset(data_file_path = args.data_file_path, obs_seq_len = args.obs_seq_len)
@@ -59,8 +65,56 @@ if __name__ == '__main__':
 
             if (epoch % args.info_per_epoch == 0):
                 print(f"At epoch #{epoch}, avg_loss = {avg_loss/num_batch}, avg_accuracy = {avg_acc/num_batch}")
+
+            epoch_train_acc.append(avg_acc/num_batch)
+            epoch_train_loss.append(avg_loss/num_batch)
             if args.lr_scheduler is not None:
                 lr_scheduler.step()
+
+            # eval in training for report
+            net.eval()
+            eval_traj_dataset = MINI_Traj_Dataset(data_file_path = 'data/imu_eval.txt', obs_seq_len = args.obs_seq_len)
+            eval_MINI_Traj_data_loader = DataLoader(dataset=traj_dataset, batch_size = N, shuffle = True, drop_last=True)
+
+            with torch.no_grad():
+                eval_avg_loss = 0.
+                eval_avg_acc = 0.
+                eval_num_batch = 1.*len(eval_MINI_Traj_data_loader)
+                for _, eval_batch in enumerate(eval_MINI_Traj_data_loader):
+                    #random fake inputs for labels, need dataloader for real imu data
+                    eval_traj_batch, eval_traj_labels = eval_batch    
+                    eval_traj_batch = eval_traj_batch.to(device)
+                    eval_traj_labels = eval_traj_labels.to(device)
+
+                    eval_traj_features = net(eval_traj_batch)
+                    eval_fall_predict = 1.*(eval_traj_features > 0.5)
+                    eval_acc = torch.mean(1.*(eval_fall_predict == eval_traj_labels))
+
+                    eval_loss = bce_loss_func(eval_traj_features, eval_traj_labels)
+                    eval_avg_loss += eval_loss
+                    eval_avg_acc += eval_acc
+                epoch_eval_acc.append(eval_avg_acc/eval_num_batch)
+                epoch_eval_loss.append(eval_avg_loss/eval_num_batch)
+
+        epochs = range(1, args.num_epoch+1)
+        plt.plot(epochs, epoch_train_loss, 'g', label='Training loss')
+        plt.plot(epochs, epoch_eval_loss, 'b', label='validation loss')
+        plt.title('Training and Validation loss')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.savefig("loss_plot.png")
+        plt.close("all")
+
+        plt.plot(epochs, epoch_train_acc, 'g', label='Training accuracy')
+        plt.plot(epochs, epoch_eval_acc, 'b', label='validation accuracy')
+        plt.title('Training and Validation accuracy')
+        plt.xlabel('Epochs')
+        plt.ylabel('Accuracy')
+        plt.legend()
+        plt.savefig("acc_plot.png")
+        plt.close("all")
+
         torch.save(net.state_dict(), args.model_save_path)
 
     # python main.py --mode eval --data_file_path data/imu_eval.txt
